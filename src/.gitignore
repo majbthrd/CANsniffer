@@ -1,0 +1,4 @@
+*.bak
+STM32sniffCAN THUMB Debug\*
+STM32sniffCAN THUMB Release\*
+*.hzs
