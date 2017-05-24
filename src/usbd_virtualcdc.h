@@ -46,6 +46,7 @@ typedef struct
   uint32_t                   InboundBufferReadIndex, InboundBufferWriteIndex;
   volatile uint32_t          InboundTransferInProgress;
   volatile uint32_t          OutboundTransferNeedsRenewal;
+  volatile uint32_t          OutboundTransferOutstanding;
 } USBD_CDC_HandleTypeDef;
 
 /* array of callback functions invoked by USBD_RegisterClass() in main.c */
@@ -54,7 +55,13 @@ extern const USBD_ClassTypeDef USBD_CDC;
 uint8_t USBD_CDC_RegisterInterface(USBD_HandleTypeDef *pdev);
 void USBD_CDC_PMAConfig(PCD_HandleTypeDef *hpcd, uint32_t *pma_address);
 
-extern uint32_t USBD_VirtualCDC_DataOut_Append(const uint8_t *data, uint32_t length);
+/* user code calls this to add data to queue to host; a return value of zero indicates the action was not possible */
+extern uint32_t USBD_VirtualCDC_ToHost_Append(const uint8_t *data, uint32_t length);
+
+/* user code optionally implements this to act upon CDC LineState events */
 extern void USBD_VirtualCDC_LineState(uint16_t state);
-  
-#endif  // __USB_CDC_H_
+
+/* user code optionally implements this to process data from the host; return value must be 0 to length and indicates number of bytes handled */
+extern uint32_t USBD_VirtualCDC_FromHost_Append(const uint8_t *data, uint32_t length);
+
+#endif  // __USB_VIRTUALCDC_H_

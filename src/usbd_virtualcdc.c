@@ -1,7 +1,7 @@
 /*
     virtual CDC for STM32F0xx
 
-    Copyright (C) 2015,2016 Peter Lawrence
+    Copyright (C) 2015,2016,2017 Peter Lawrence
 
     Permission is hereby granted, free of charge, to any person obtaining a 
     copy of this software and associated documentation files (the "Software"), 
@@ -76,7 +76,8 @@ static uint8_t USBD_CDC_Init (USBD_HandleTypeDef *pdev, uint8_t cfgidx)
   context.InboundBufferReadIndex = context.InboundBufferWriteIndex = 0;
   context.InboundTransferInProgress = 0;
   context.OutboundTransferNeedsRenewal = 0;
-   
+  context.OutboundTransferOutstanding = 0;
+
   /* Prepare Out endpoint to receive next packet */
   USBD_CDC_ReceivePacket(pdev);
 
@@ -143,17 +144,35 @@ static uint8_t USBD_CDC_DataIn (USBD_HandleTypeDef *pdev, uint8_t epnum)
   return USBD_OK;
 }
 
+static void USBD_CDC_Service_DataOut(void)
+{
+  uint32_t HandledLength;
+  uint8_t *buffer_ptr = (uint8_t *)context.OutboundBuffer;
+
+  HandledLength = USBD_VirtualCDC_FromHost_Append(buffer_ptr, context.OutboundTransferOutstanding);
+
+  if (HandledLength >= context.OutboundTransferOutstanding)
+  {
+    context.OutboundTransferOutstanding = 0;
+    context.OutboundTransferNeedsRenewal = 1;
+  }
+  else
+  {
+    context.OutboundTransferOutstanding -= HandledLength;
+    memmove(buffer_ptr, buffer_ptr + HandledLength, context.OutboundTransferOutstanding);
+  }
+}
+
 static uint8_t USBD_CDC_DataOut (USBD_HandleTypeDef *pdev, uint8_t epnum)
 {
-  uint32_t RxLength;
+  uint32_t RxLength, HandledLength;
 
   if (CDC_EP_DATAOUT == epnum)
   {
     /* Get the received data length */
-    RxLength = USBD_LL_GetRxDataSize (pdev, epnum);
+    context.OutboundTransferOutstanding = USBD_LL_GetRxDataSize (pdev, epnum);
 
-    /* transmit (device to PC Host) only: throw away data and set flag to allow new dataout */
-    context.OutboundTransferNeedsRenewal = 1;
+    USBD_CDC_Service_DataOut();
   }
 
   return USBD_OK;
@@ -186,6 +205,9 @@ static uint8_t USBD_CDC_SOF (USBD_HandleTypeDef *pdev)
       }
     }
   }
+
+  if (context.OutboundTransferOutstanding)
+    USBD_CDC_Service_DataOut();
 
   if (context.OutboundTransferNeedsRenewal) /* if there is a lingering request needed due to a HAL_BUSY, retry it */
     USBD_CDC_ReceivePacket(pdev);
@@ -270,7 +292,7 @@ void USBD_CDC_PMAConfig(PCD_HandleTypeDef *hpcd, uint32_t *pma_address)
   HAL_PCDEx_PMAConfig(hpcd, CDC_EP_COMMAND,  PCD_SNG_BUF, *pma_address =+ CDC_CMD_PACKET_SIZE);
 }
 
-uint32_t USBD_VirtualCDC_DataOut_Append(const uint8_t *data, uint32_t length)
+uint32_t USBD_VirtualCDC_ToHost_Append(const uint8_t *data, uint32_t length)
 {
   uint32_t write_index, next_write_index, read_index, countdown;
   uint8_t *wpnt;
@@ -310,4 +332,8 @@ uint32_t USBD_VirtualCDC_DataOut_Append(const uint8_t *data, uint32_t length)
   return length;
 }
 
-__weak void USBD_VirtualCDC_LineState(uint16_t state) {} /* optionally overridden by user code */
+/* optionally overridden by user code */
+__weak void USBD_VirtualCDC_LineState(uint16_t state) {}
+
+/* optionally overridden by user code */
+__weak uint32_t USBD_VirtualCDC_FromHost_Append(const uint8_t *data, uint32_t length) { return length; /* throw away data to allow new dataout */}

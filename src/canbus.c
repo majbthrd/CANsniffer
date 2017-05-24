@@ -212,7 +212,7 @@ void CANbus_Service(void)
       scratchpad[length++] = 13; /* CR */
 
       /* bail loop if the buffer to the PC is too full */
-      if (0 == USBD_VirtualCDC_DataOut_Append(scratchpad, length))
+      if (0 == USBD_VirtualCDC_ToHost_Append(scratchpad, length))
         break;
     }
 
