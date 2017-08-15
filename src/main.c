@@ -1,7 +1,7 @@
 /*
     CANbus sniffer using STM32F042
 
-    Copyright (C) 2015,2016 Peter Lawrence
+    Copyright (C) 2015,2016,2017 Peter Lawrence
 
     Permission is hereby granted, free of charge, to any person obtaining a 
     copy of this software and associated documentation files (the "Software"), 
@@ -36,6 +36,13 @@ static void SystemClock_Config(void);
 
 void main(void)
 {
+  /*
+  Interrupts are enabled at reset, and ST's (mis)decision is to start enabling NVIC interrupts in USBD_Init().
+  By disabling interrupts here, and enabling later when everything is ready, we avoid this race condition.
+  */
+  __disable_irq();
+
+  /* STM32F0xx HAL library initialization */
   HAL_Init();
   
   /* Configure the system clock to get correspondent USB clock source */
@@ -55,6 +62,9 @@ void main(void)
 
   /* initialize CANbus routines */
   CANbus_Init();
+
+  /* OK, only *now* it is OK for the USB interrupts to fire */
+  __enable_irq();
 
   for (;;)
   {
