@@ -102,7 +102,7 @@ __ALIGN_BEGIN static const struct configuration_1 USBD_CDC_CfgFSDesc __ALIGN_END
   CDC_DESCRIPTOR(CDC_ITF_COMMAND, CDC_ITF_DATA, CDC_EP_COMMAND, CDC_EP_DATAOUT, CDC_EP_DATAIN)
 };
 
-const uint8_t *USBD_CfgFSDesc_pnt = (const uint8_t *)&USBD_CDC_CfgFSDesc;
+const uint8_t *const USBD_CfgFSDesc_pnt = (const uint8_t *)&USBD_CDC_CfgFSDesc;
 const uint16_t USBD_CfgFSDesc_len = sizeof(USBD_CDC_CfgFSDesc);
 
 /* USB Standard Device Descriptor */
